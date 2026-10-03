@@ -108,7 +108,7 @@ func handleHello(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := Response{
-		Message: "Hello from Cloud Run with Go123!",
+		Message: "Hello from Cloud Run with Go12345!",
 		Status:  "success",
 	}
 	json.NewEncoder(w).Encode(response)
