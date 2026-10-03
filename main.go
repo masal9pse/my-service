@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -32,6 +34,8 @@ var db *sql.DB
 // 1. Prisma用の `?pgbouncer=true` などの非対応パラメータを除去
 // 2. SSL必須のSupabase用に `sslmode=require` を設定
 func cleanDatabaseURL(rawURL string) string {
+	rawURL = strings.TrimSpace(rawURL)
+	rawURL = strings.Trim(rawURL, `"'`)
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return rawURL
@@ -45,6 +49,62 @@ func cleanDatabaseURL(rawURL string) string {
 	return u.String()
 }
 
+// .env 形式のテキストから DATABASE_URL や DIRECT_URL を抽出する
+func parseEnvContent(content string) string {
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "DIRECT_URL=") {
+			return strings.Trim(strings.TrimPrefix(line, "DIRECT_URL="), `"' `)
+		}
+		if strings.HasPrefix(line, "DATABASE_URL=") {
+			return strings.Trim(strings.TrimPrefix(line, "DATABASE_URL="), `"' `)
+		}
+		// ファイル全体が単一の postgresql:// URL の場合
+		if strings.HasPrefix(line, "postgresql://") || strings.HasPrefix(line, "postgres://") {
+			return strings.Trim(line, `"' `)
+		}
+	}
+	return ""
+}
+
+// 環境変数やシークレットファイルから接続文字列を探す
+func findDatabaseURL() string {
+	// 1. 環境変数 DIRECT_URL
+	if u := os.Getenv("DIRECT_URL"); u != "" {
+		return u
+	}
+	// 2. 環境変数 DATABASE_URL
+	if u := os.Getenv("DATABASE_URL"); u != "" {
+		return u
+	}
+	// 3. 環境変数 env (Secret Managerからファイル全体が注入された場合)
+	if envVal := os.Getenv("env"); envVal != "" {
+		if parsed := parseEnvContent(envVal); parsed != "" {
+			return parsed
+		}
+		// そのままURL文字列である場合
+		if strings.HasPrefix(envVal, "postgresql://") || strings.HasPrefix(envVal, "postgres://") {
+			return envVal
+		}
+	}
+
+	// 4. マウントされたファイルや .env
+	candidatePaths := []string{".env", "/secrets/env", "/secrets/.env"}
+	for _, path := range candidatePaths {
+		if data, err := os.ReadFile(path); err == nil {
+			if parsed := parseEnvContent(string(data)); parsed != "" {
+				return parsed
+			}
+		}
+	}
+
+	return ""
+}
+
 func main() {
 	// Cloud Run は環境変数 PORT を指定してくるため、それに合わせる
 	port := os.Getenv("PORT")
@@ -53,14 +113,10 @@ func main() {
 	}
 
 	// Supabase (PostgreSQL) 接続文字列の取得
-	// DIRECT_URL (ポート5432) または DATABASE_URL (ポート6543) のどちらでもOK
-	dbURL := os.Getenv("DIRECT_URL")
-	if dbURL == "" {
-		dbURL = os.Getenv("DATABASE_URL")
-	}
+	dbURL := findDatabaseURL()
 
 	if dbURL == "" {
-		log.Println("WARNING: Neither DIRECT_URL nor DATABASE_URL is set. /not-todos endpoint will return an error.")
+		log.Println("WARNING: Database connection URL is not found in DIRECT_URL, DATABASE_URL, or env.")
 	} else {
 		cleanedURL := cleanDatabaseURL(dbURL)
 		var err error
@@ -108,7 +164,7 @@ func handleHello(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := Response{
-		Message: "Hello from Cloud Run with Go12345!",
+		Message: "Hello from Cloud Run with Go!",
 		Status:  "success",
 	}
 	json.NewEncoder(w).Encode(response)
@@ -133,7 +189,7 @@ func handleNotTodos(w http.ResponseWriter, r *http.Request) {
 	if db == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{
-			"error": "DATABASE_URL or DIRECT_URL is not configured or database connection failed.",
+			"error": "Database connection is not configured or failed to initialize.",
 		})
 		return
 	}
