@@ -115,33 +115,60 @@ type contextKey string
 
 const userIDContextKey contextKey = "userID"
 
-// SUPABASE_URL から JWKS (公開鍵) のURLを取得する
-func findJWKSURL() string {
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	if supabaseURL == "" {
-		candidatePaths := []string{".env", "/secrets/env", "/secrets/.env"}
-		for _, path := range candidatePaths {
-			if data, err := os.ReadFile(path); err == nil {
-				scanner := bufio.NewScanner(strings.NewReader(string(data)))
-				for scanner.Scan() {
-					line := strings.TrimSpace(scanner.Text())
-					if strings.HasPrefix(line, "SUPABASE_URL=") {
-						supabaseURL = strings.Trim(strings.TrimPrefix(line, "SUPABASE_URL="), `"' `)
-						break
-					}
-				}
-			}
-			if supabaseURL != "" {
-				break
+// .env 形式のテキストから特定キーの値を抽出する
+func parseEnvKey(content, key string) string {
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	prefix := key + "="
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, prefix) {
+			return strings.Trim(strings.TrimPrefix(line, prefix), `"' `)
+		}
+	}
+	return ""
+}
+
+// SUPABASE_URL または DB接続文字列から JWKS (公開鍵) のURLを取得する
+func findJWKSURL(dbURL string) string {
+	// 1. 環境変数 SUPABASE_URL
+	if u := os.Getenv("SUPABASE_URL"); u != "" {
+		return fmt.Sprintf("%s/auth/v1/.well-known/jwks.json", strings.TrimRight(strings.TrimSpace(u), "/"))
+	}
+
+	// 2. 環境変数 env (Secret Managerからファイル全体が注入された場合)
+	if envVal := os.Getenv("env"); envVal != "" {
+		if u := parseEnvKey(envVal, "SUPABASE_URL"); u != "" {
+			return fmt.Sprintf("%s/auth/v1/.well-known/jwks.json", strings.TrimRight(u, "/"))
+		}
+	}
+
+	// 3. マウントされたファイルや .env
+	candidatePaths := []string{".env", "/secrets/env", "/secrets/.env"}
+	for _, path := range candidatePaths {
+		if data, err := os.ReadFile(path); err == nil {
+			if u := parseEnvKey(string(data), "SUPABASE_URL"); u != "" {
+				return fmt.Sprintf("%s/auth/v1/.well-known/jwks.json", strings.TrimRight(u, "/"))
 			}
 		}
 	}
 
-	if supabaseURL == "" {
-		return ""
+	// 4. フォールバック: 既存の DB 接続 URL (DIRECT_URL / DATABASE_URL) からプロジェクトIDを自動抽出
+	if dbURL != "" {
+		if idx := strings.Index(dbURL, "postgres."); idx != -1 {
+			sub := dbURL[idx+len("postgres."):]
+			endIdx := strings.IndexAny(sub, ":@")
+			if endIdx != -1 {
+				projectRef := sub[:endIdx]
+				log.Printf("Auto-detected Supabase project ref from database URL: %s\n", projectRef)
+				return fmt.Sprintf("https://%s.supabase.co/auth/v1/.well-known/jwks.json", projectRef)
+			}
+		}
 	}
 
-	return fmt.Sprintf("%s/auth/v1/.well-known/jwks.json", strings.TrimRight(supabaseURL, "/"))
+	return ""
 }
 
 // 認証ミドルウェア (Supabase JWT の署名・有効期限を JWKS で検証)
@@ -234,7 +261,7 @@ func main() {
 	}
 
 	// Supabase JWKS (公開鍵) の初期化
-	jwksURL := findJWKSURL()
+	jwksURL := findJWKSURL(dbURL)
 	if jwksURL == "" {
 		log.Println("WARNING: Supabase URL (SUPABASE_URL) is not found. Auth middleware will reject requests.")
 	} else {
