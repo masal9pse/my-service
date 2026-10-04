@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -11,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MicahParks/keyfunc/v3"
+	"github.com/golang-jwt/jwt/v5"
 	_ "github.com/lib/pq"
 )
 
@@ -105,6 +109,99 @@ func findDatabaseURL() string {
 	return ""
 }
 
+var jwksKeyfunc jwt.Keyfunc
+
+type contextKey string
+
+const userIDContextKey contextKey = "userID"
+
+// SUPABASE_URL から JWKS (公開鍵) のURLを取得する
+func findJWKSURL() string {
+	supabaseURL := os.Getenv("SUPABASE_URL")
+	if supabaseURL == "" {
+		candidatePaths := []string{".env", "/secrets/env", "/secrets/.env"}
+		for _, path := range candidatePaths {
+			if data, err := os.ReadFile(path); err == nil {
+				scanner := bufio.NewScanner(strings.NewReader(string(data)))
+				for scanner.Scan() {
+					line := strings.TrimSpace(scanner.Text())
+					if strings.HasPrefix(line, "SUPABASE_URL=") {
+						supabaseURL = strings.Trim(strings.TrimPrefix(line, "SUPABASE_URL="), `"' `)
+						break
+					}
+				}
+			}
+			if supabaseURL != "" {
+				break
+			}
+		}
+	}
+
+	if supabaseURL == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s/auth/v1/.well-known/jwks.json", strings.TrimRight(supabaseURL, "/"))
+}
+
+// 認証ミドルウェア (Supabase JWT の署名・有効期限を JWKS で検証)
+func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		setCORSHeaders(w)
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if jwksKeyfunc == nil {
+			log.Println("ERROR: Supabase JWKS is not initialized. Authentication unavailable.")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Authentication service is not properly configured.",
+			})
+			return
+		}
+
+		authHeader := r.Header.Get("Authorization")
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Missing or invalid Authorization header. Expected format: 'Bearer <token>'.",
+			})
+			return
+		}
+
+		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		if tokenString == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Bearer token is empty.",
+			})
+			return
+		}
+
+		token, err := jwt.Parse(tokenString, jwksKeyfunc)
+		if err != nil || !token.Valid {
+			log.Printf("JWT verification failed: %v\n", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Unauthorized: invalid or expired token.",
+			})
+			return
+		}
+
+		// 認証成功: claims から sub (User UUID) を取り出して Context に格納
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if sub, ok := claims["sub"].(string); ok {
+				ctx := context.WithValue(r.Context(), userIDContextKey, sub)
+				r = r.WithContext(ctx)
+			}
+		}
+
+		next(w, r)
+	}
+}
+
 func main() {
 	// Cloud Run は環境変数 PORT を指定してくるため、それに合わせる
 	port := os.Getenv("PORT")
@@ -136,10 +233,25 @@ func main() {
 		}
 	}
 
+	// Supabase JWKS (公開鍵) の初期化
+	jwksURL := findJWKSURL()
+	if jwksURL == "" {
+		log.Println("WARNING: Supabase URL (SUPABASE_URL) is not found. Auth middleware will reject requests.")
+	} else {
+		log.Printf("Initializing Supabase JWKS from: %s\n", jwksURL)
+		k, err := keyfunc.NewDefault([]string{jwksURL})
+		if err != nil {
+			log.Printf("ERROR: Failed to initialize JWKS: %v\n", err)
+		} else {
+			jwksKeyfunc = k.Keyfunc
+			log.Println("Successfully initialized Supabase JWKS keyfunc!")
+		}
+	}
+
 	// ルーティング設定
 	http.HandleFunc("/hello", handleHello)
-	http.HandleFunc("/not-todos", handleNotTodos)
-	http.HandleFunc("/not_todos", handleNotTodos)
+	http.HandleFunc("/not-todos", authMiddleware(handleNotTodos))
+	http.HandleFunc("/not_todos", authMiddleware(handleNotTodos))
 
 	log.Printf("Server is running on port %s...", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
