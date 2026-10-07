@@ -4,3 +4,8 @@ export interface NotTodo {
   description: string | null
   created_at: string | null
 }
+
+export interface Todo {
+  id: number
+  description: string
+}

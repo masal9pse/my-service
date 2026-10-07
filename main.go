@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,12 @@ import (
 type Response struct {
 	Message string `json:"message"`
 	Status  string `json:"status"`
+}
+
+// Todo は todos テーブルのレコード構造体
+type Todo struct {
+	ID          int64  `json:"id"`
+	Description string `json:"description"`
 }
 
 // NotTodo は not_todos テーブルのレコード構造体
@@ -276,13 +283,18 @@ func main() {
 		}
 	}
 
+	// 静的フロントエンド配信 (frontend/dist が存在する場合)
+	staticDir := "frontend/dist"
+
 	// ルーティング設定
 	http.HandleFunc("/hello", handleHello)
 	http.HandleFunc("/not-todos", handleNotTodos)
 	http.HandleFunc("/not_todos", handleNotTodos)
+	http.HandleFunc("/todos", handleTodosRoute(staticDir))
+	http.HandleFunc("/todos/", handleTodosRoute(staticDir))
+	http.HandleFunc("/api/todos", handleTodos)
+	http.HandleFunc("/api/todos/", handleTodos)
 
-	// 静的フロントエンド配信 (frontend/dist が存在する場合)
-	staticDir := "frontend/dist"
 	if _, err := os.Stat(filepath.Join(staticDir, "index.html")); err == nil {
 		log.Printf("Serving frontend from %s...", staticDir)
 		http.HandleFunc("/", spaHandler(staticDir))
@@ -380,6 +392,128 @@ func handleNotTodos(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
+// GET /todos または GET /todos/{id} のルーティングラッパー
+// ブラウザからの直接アクセス (Accept に text/html が含まれる) の場合は SPA の index.html を返却
+func handleTodosRoute(staticDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Accept"), "text/html") {
+			indexPath := filepath.Join(staticDir, "index.html")
+			if _, err := os.Stat(indexPath); err == nil {
+				http.ServeFile(w, r, indexPath)
+				return
+			}
+		}
+		handleTodos(w, r)
+	}
+}
+
+// GET /todos (一覧) および GET /todos/{id} (詳細) または GET /api/todos
+func handleTodos(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Method not allowed. Use GET.",
+		})
+		return
+	}
+
+	if db == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Database connection is not configured or failed to initialize.",
+		})
+		return
+	}
+
+	// パスからIDを取得 (例: /todos/123 や /api/todos/123)
+	pathTrimmed := strings.Trim(r.URL.Path, "/")
+	var idStr string
+	parts := strings.Split(pathTrimmed, "/")
+	if len(parts) >= 2 && (parts[0] == "todos" || (parts[0] == "api" && parts[1] == "todos" && len(parts) >= 3)) {
+		if parts[0] == "todos" {
+			idStr = parts[1]
+		} else {
+			idStr = parts[2]
+		}
+	} else if qID := r.URL.Query().Get("id"); qID != "" {
+		idStr = qID
+	}
+
+	if idStr != "" {
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Invalid id parameter",
+			})
+			return
+		}
+
+		var item Todo
+		err = db.QueryRow("SELECT id, COALESCE(description, '') FROM todos WHERE id = $1", id).Scan(&item.ID, &item.Description)
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Todo not found",
+			})
+			return
+		} else if err != nil {
+			log.Printf("Error querying todo by id: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Failed to fetch todo: " + err.Error(),
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(item)
+		return
+	}
+
+	// 一覧取得
+	rows, err := db.Query("SELECT id, COALESCE(description, '') FROM todos ORDER BY id ASC")
+	if err != nil {
+		log.Printf("Error querying todos: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Failed to fetch todos from database: " + err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	items := make([]Todo, 0)
+	for rows.Next() {
+		var item Todo
+		if err := rows.Scan(&item.ID, &item.Description); err != nil {
+			log.Printf("Error scanning row: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Failed to parse data: " + err.Error(),
+			})
+			return
+		}
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("Row iteration error: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Failed to iterate rows: " + err.Error(),
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(items)
+}
+
 // SPA用静的ファイル配信ハンドラー（存在しないパスはindex.htmlを返却）
 func spaHandler(staticDir string) http.HandlerFunc {
 	fs := http.Dir(staticDir)
@@ -387,7 +521,8 @@ func spaHandler(staticDir string) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		// APIパスへのアクセスは404
-		if strings.HasPrefix(r.URL.Path, "/not-todos") ||
+		if strings.HasPrefix(r.URL.Path, "/api/") ||
+			strings.HasPrefix(r.URL.Path, "/not-todos") ||
 			strings.HasPrefix(r.URL.Path, "/not_todos") ||
 			strings.HasPrefix(r.URL.Path, "/hello") {
 			http.NotFound(w, r)
