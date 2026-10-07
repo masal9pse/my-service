@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -277,8 +278,17 @@ func main() {
 
 	// ルーティング設定
 	http.HandleFunc("/hello", handleHello)
-	http.HandleFunc("/not-todos", authMiddleware(handleNotTodos))
-	http.HandleFunc("/not_todos", authMiddleware(handleNotTodos))
+	http.HandleFunc("/not-todos", handleNotTodos)
+	http.HandleFunc("/not_todos", handleNotTodos)
+
+	// 静的フロントエンド配信 (frontend/dist が存在する場合)
+	staticDir := "frontend/dist"
+	if _, err := os.Stat(filepath.Join(staticDir, "index.html")); err == nil {
+		log.Printf("Serving frontend from %s...", staticDir)
+		http.HandleFunc("/", spaHandler(staticDir))
+	} else {
+		log.Println("Frontend build not found, serving API only mode.")
+	}
 
 	log.Printf("Server is running on port %s...", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
@@ -368,4 +378,32 @@ func handleNotTodos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(items)
+}
+
+// SPA用静的ファイル配信ハンドラー（存在しないパスはindex.htmlを返却）
+func spaHandler(staticDir string) http.HandlerFunc {
+	fs := http.Dir(staticDir)
+	fileServer := http.FileServer(fs)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		// APIパスへのアクセスは404
+		if strings.HasPrefix(r.URL.Path, "/not-todos") ||
+			strings.HasPrefix(r.URL.Path, "/not_todos") ||
+			strings.HasPrefix(r.URL.Path, "/hello") {
+			http.NotFound(w, r)
+			return
+		}
+
+		path := filepath.Join(staticDir, filepath.Clean(r.URL.Path))
+		info, err := os.Stat(path)
+		if os.IsNotExist(err) || (err == nil && info.IsDir()) {
+			indexPath := filepath.Join(staticDir, "index.html")
+			if _, indexErr := os.Stat(indexPath); indexErr == nil {
+				http.ServeFile(w, r, indexPath)
+				return
+			}
+		}
+
+		fileServer.ServeHTTP(w, r)
+	}
 }
