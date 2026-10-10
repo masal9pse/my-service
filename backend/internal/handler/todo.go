@@ -1,0 +1,173 @@
+package handler
+
+import (
+	"encoding/json"
+	"errors"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"myapi/internal/model"
+	"myapi/internal/repository"
+)
+
+type TodoHandler struct {
+	repo repository.TodoRepository
+}
+
+func NewTodoHandler(repo repository.TodoRepository) *TodoHandler {
+	return &TodoHandler{repo: repo}
+}
+
+// HandleHello は GET /hello のハンドラーです
+func (h *TodoHandler) HandleHello(w http.ResponseWriter, r *http.Request) {
+	SetCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	response := model.Response{
+		Message: "Hello from Cloud Run with Go!",
+		Status:  "success",
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+// HandleTodosRoute は GET /todos または GET /todos/{id} のルーティングラッパーです
+// ブラウザからの直接アクセス (Accept に text/html が含まれる) の場合は SPA の index.html を返却します
+func (h *TodoHandler) HandleTodosRoute(staticDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Accept"), "text/html") {
+			indexPath := filepath.Join(staticDir, "index.html")
+			if _, err := os.Stat(indexPath); err == nil {
+				http.ServeFile(w, r, indexPath)
+				return
+			}
+		}
+		h.HandleTodos(w, r)
+	}
+}
+
+// HandleTodos は GET /todos (一覧) および GET /todos/{id} (詳細) または GET /api/todos を処理します
+func (h *TodoHandler) HandleTodos(w http.ResponseWriter, r *http.Request) {
+	SetCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Method not allowed. Use GET.",
+		})
+		return
+	}
+
+	if h.repo == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Database connection is not configured or failed to initialize.",
+		})
+		return
+	}
+
+	// パスからIDを取得 (例: /todos/123 や /api/todos/123)
+	pathTrimmed := strings.Trim(r.URL.Path, "/")
+	var idStr string
+	parts := strings.Split(pathTrimmed, "/")
+	if len(parts) >= 2 && (parts[0] == "todos" || (parts[0] == "api" && parts[1] == "todos" && len(parts) >= 3)) {
+		if parts[0] == "todos" {
+			idStr = parts[1]
+		} else {
+			idStr = parts[2]
+		}
+	} else if qID := r.URL.Query().Get("id"); qID != "" {
+		idStr = qID
+	}
+
+	// 個別Todoの取得
+	if idStr != "" {
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Invalid id parameter",
+			})
+			return
+		}
+
+		item, err := h.repo.GetTodoByID(r.Context(), id)
+		if errors.Is(err, repository.ErrNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Todo not found",
+			})
+			return
+		} else if err != nil {
+			log.Printf("Error querying todo by id: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Failed to fetch todo: " + err.Error(),
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(item)
+		return
+	}
+
+	// 全件取得
+	items, err := h.repo.GetAllTodos(r.Context())
+	if err != nil {
+		log.Printf("Error querying todos: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Failed to fetch todos from database: " + err.Error(),
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(items)
+}
+
+// HandleNotTodos は GET /not-todos (および /not_todos) を処理します
+func (h *TodoHandler) HandleNotTodos(w http.ResponseWriter, r *http.Request) {
+	SetCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Method not allowed. Use GET.",
+		})
+		return
+	}
+
+	if h.repo == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Database connection is not configured or failed to initialize.",
+		})
+		return
+	}
+
+	items, err := h.repo.GetAllNotTodos(r.Context())
+	if err != nil {
+		log.Printf("Error querying not_todos: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Failed to fetch not-todos from database: " + err.Error(),
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(items)
+}

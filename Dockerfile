@@ -9,11 +9,12 @@ RUN npm run build
 
 # 2. Go バックエンドのビルドステージ
 FROM golang:1.22-alpine AS backend-builder
-WORKDIR /app
+WORKDIR /app/backend
 
-COPY . .
-RUN go mod tidy
-RUN CGO_ENABLED=0 GOOS=linux go build -v -o /server main.go
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+COPY backend/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o /server ./cmd/server
 
 # 3. 実行ステージ
 FROM alpine:latest
