@@ -8,7 +8,9 @@ import {
   AlertCircle, 
   Layers, 
   Hash,
-  Terminal
+  Terminal,
+  Plus,
+  Loader2
 } from 'lucide-react'
 
 interface TodoListViewProps {
@@ -17,6 +19,7 @@ interface TodoListViewProps {
   error: string | null
   onRefresh: () => void
   onSelectTodo: (id: number) => void
+  onCreateTodo?: (description: string) => Promise<void>
 }
 
 export function TodoListView({
@@ -25,8 +28,28 @@ export function TodoListView({
   error,
   onRefresh,
   onSelectTodo,
+  onCreateTodo,
 }: TodoListViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [newDescription, setNewDescription] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newDescription.trim() || !onCreateTodo) return
+
+    setSubmitting(true)
+    setCreateError(null)
+    try {
+      await onCreateTodo(newDescription.trim())
+      setNewDescription('')
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : 'Todoの作成に失敗しました')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const filteredItems = items.filter((item) => {
     if (!searchQuery.trim()) return true
@@ -49,6 +72,46 @@ export function TodoListView({
           </p>
         </div>
       </div>
+
+      {/* 新規Todo追加フォーム */}
+      {onCreateTodo && (
+        <form onSubmit={handleCreateSubmit} className="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 backdrop-blur-sm space-y-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-200">
+            <Plus className="w-4 h-4 text-cyan-400" />
+            <span>新規 Todo を追加</span>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <textarea
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="Todo の内容を入力してください (Markdown対応)..."
+              rows={2}
+              disabled={submitting}
+              className="flex-1 px-3 py-2 bg-zinc-950/80 border border-zinc-800 rounded-lg text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500/60 transition resize-none disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={submitting || !newDescription.trim()}
+              className="px-4 py-2 self-end sm:self-auto rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium transition disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>追加中...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>追加する</span>
+                </>
+              )}
+            </button>
+          </div>
+          {createError && (
+            <p className="text-xs text-red-400">{createError}</p>
+          )}
+        </form>
+      )}
 
       {/* ツールバー (検索 & 更新) */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">

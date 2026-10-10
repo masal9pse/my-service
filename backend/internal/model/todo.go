@@ -14,6 +14,11 @@ type Todo struct {
 	Description string `json:"description"`
 }
 
+// CreateTodoRequest は Todo 作成リクエストの構造体
+type CreateTodoRequest struct {
+	Description string `json:"description"`
+}
+
 // NotTodo は not_todos テーブルのレコード構造体
 type NotTodo struct {
 	ID          int64      `json:"id"`

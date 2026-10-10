@@ -147,6 +147,17 @@ sequenceDiagram
     Repo-->>API: *model.Todo
     API-->>User: JSON レスポンス ({id, description})
     User->>User: GitHub風マークダウン詳細を描画
+
+    %% 新規追加
+    Note over User, DB: 4. Todo 新規追加時
+    User->>Router: POST /api/todos (body: {"description": "..."})
+    Router->>API: HandleTodos / handleCreateTodo 呼び出し
+    API->>Repo: CreateTodo(ctx, description)
+    Repo->>DB: INSERT INTO todos (description) VALUES ($1) RETURNING id, description
+    DB-->>Repo: 作成された行データ返却
+    Repo-->>API: *model.Todo
+    API-->>User: JSON レスポンス 201 Created ({id, description})
+    User->>User: 一覧へ即時反映
 ```
 
 ---

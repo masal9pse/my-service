@@ -1,5 +1,5 @@
 import { useEffect, useState, useTransition } from 'react'
-import { fetchTodos } from './api'
+import { fetchTodos, createTodo } from './api'
 import { Todo } from './types'
 import { TodoListView } from './components/TodoListView'
 import { TodoDetailView } from './components/TodoDetailView'
@@ -88,6 +88,12 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Todo の新規作成
+  const handleCreateTodo = async (description: string) => {
+    const newTodo = await createTodo(description)
+    setItems((prev) => [...prev, newTodo])
+  }
+
   return (
     <div className="min-h-screen bg-[#090d14] text-zinc-100 flex flex-col font-sans selection:bg-cyan-500/30">
       {/* アンビエント背景グラデーション */}
@@ -141,6 +147,7 @@ export default function App() {
             error={error}
             onRefresh={loadData}
             onSelectTodo={navigateToDetail}
+            onCreateTodo={handleCreateTodo}
           />
         ) : (
           <TodoDetailView

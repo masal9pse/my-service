@@ -37,11 +37,11 @@ func (h *TodoHandler) HandleHello(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// HandleTodosRoute は GET /todos または GET /todos/{id} のルーティングラッパーです
-// ブラウザからの直接アクセス (Accept に text/html が含まれる) の場合は SPA の index.html を返却します
+// HandleTodosRoute は GET/POST /todos または GET /todos/{id} のルーティングラッパーです
+// ブラウザからの直接アクセス (Accept に text/html が含まれる GET リクエスト) の場合は SPA の index.html を返却します
 func (h *TodoHandler) HandleTodosRoute(staticDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		if r.Method == http.MethodGet && strings.Contains(r.Header.Get("Accept"), "text/html") {
 			indexPath := filepath.Join(staticDir, "index.html")
 			if _, err := os.Stat(indexPath); err == nil {
 				http.ServeFile(w, r, indexPath)
@@ -52,7 +52,7 @@ func (h *TodoHandler) HandleTodosRoute(staticDir string) http.HandlerFunc {
 	}
 }
 
-// HandleTodos は GET /todos (一覧) および GET /todos/{id} (詳細) または GET /api/todos を処理します
+// HandleTodos は GET /todos (一覧) および GET /todos/{id} (詳細)、POST /todos (作成)、または GET/POST /api/todos を処理します
 func (h *TodoHandler) HandleTodos(w http.ResponseWriter, r *http.Request) {
 	SetCORSHeaders(w)
 	if r.Method == http.MethodOptions {
@@ -60,18 +60,23 @@ func (h *TodoHandler) HandleTodos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Method not allowed. Use GET.",
-		})
-		return
-	}
-
 	if h.repo == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{
 			"error": "Database connection is not configured or failed to initialize.",
+		})
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		h.handleCreateTodo(w, r)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Method not allowed. Use GET or POST.",
 		})
 		return
 	}
@@ -170,4 +175,38 @@ func (h *TodoHandler) HandleNotTodos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(items)
+}
+
+// handleCreateTodo は POST /todos および POST /api/todos のリクエストを処理して新規Todoを作成します
+func (h *TodoHandler) handleCreateTodo(w http.ResponseWriter, r *http.Request) {
+	var req model.CreateTodoRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Invalid request body: " + err.Error(),
+		})
+		return
+	}
+
+	trimmed := strings.TrimSpace(req.Description)
+	if trimmed == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Description cannot be empty",
+		})
+		return
+	}
+
+	item, err := h.repo.CreateTodo(r.Context(), trimmed)
+	if err != nil {
+		log.Printf("Error creating todo: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Failed to create todo: " + err.Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(item)
 }
