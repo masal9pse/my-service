@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { LogIn, X, AlertCircle, Loader2, KeyRound, Mail, Settings, ShieldCheck } from 'lucide-react'
-import { signInWithEmailPassword, getSupabaseConfig, saveSupabaseConfig, AuthSession } from '../auth'
+import { LogIn, X, AlertCircle, Loader2, KeyRound, Mail } from 'lucide-react'
+import { signInWithEmailPassword, AuthSession } from '../auth'
 
 interface LoginModalProps {
   isOpen: boolean
@@ -9,16 +9,10 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
-  const currentConfig = getSupabaseConfig()
   const [email, setEmail] = useState('returnymgstokh@gmail.com')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // Supabase URL / Anon Key の手動設定用
-  const [showConfig, setShowConfig] = useState(!currentConfig.url || !currentConfig.anonKey)
-  const [supabaseUrl, setSupabaseUrl] = useState(currentConfig.url)
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState(currentConfig.anonKey)
 
   if (!isOpen) return null
 
@@ -28,16 +22,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
     setLoading(true)
 
     try {
-      if (showConfig && supabaseUrl && supabaseAnonKey) {
-        saveSupabaseConfig(supabaseUrl, supabaseAnonKey)
-      }
-
-      const session = await signInWithEmailPassword(
-        email.trim(),
-        password,
-        showConfig && supabaseUrl ? { url: supabaseUrl, anonKey: supabaseAnonKey } : undefined
-      )
-
+      const session = await signInWithEmailPassword(email.trim(), password)
       onSuccess(session)
       onClose()
     } catch (err: unknown) {
@@ -136,47 +121,6 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
             )}
           </button>
         </form>
-
-        {/* Supabase 接続設定 (URL / Anon Key が未設定または変更したい場合) */}
-        <div className="pt-2 border-t border-zinc-800/80">
-          <button
-            type="button"
-            onClick={() => setShowConfig(!showConfig)}
-            className="text-[11px] text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition"
-          >
-            <Settings className="w-3 h-3" />
-            <span>Supabase 接続設定 {showConfig ? '▲' : '▼'}</span>
-          </button>
-
-          {showConfig && (
-            <div className="mt-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2.5 text-xs">
-              <div className="flex items-center gap-1 text-[11px] text-zinc-400">
-                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Supabase プロジェクト情報</span>
-              </div>
-              <div>
-                <label className="text-[10px] text-zinc-500 block mb-1">SUPABASE URL</label>
-                <input
-                  type="text"
-                  value={supabaseUrl}
-                  onChange={(e) => setSupabaseUrl(e.target.value)}
-                  placeholder="https://xxxx.supabase.co"
-                  className="w-full px-2.5 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/50"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-zinc-500 block mb-1">SUPABASE ANON KEY</label>
-                <input
-                  type="password"
-                  value={supabaseAnonKey}
-                  onChange={(e) => setSupabaseAnonKey(e.target.value)}
-                  placeholder="eyJhbGciOi..."
-                  className="w-full px-2.5 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/50"
-                />
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   )

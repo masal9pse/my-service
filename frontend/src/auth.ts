@@ -12,36 +12,12 @@ export interface AuthSession {
 }
 
 const STORAGE_KEY = 'strandlog_auth_session'
-const CONFIG_KEY = 'strandlog_supabase_config'
 
-// Supabase URL & Anon Key の取得
+// Supabase URL & Anon Key の取得 (環境変数から解決)
 export function getSupabaseConfig(): { url: string; anonKey: string } {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || ''
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-
-  if (envUrl && envKey) {
-    return { url: envUrl.replace(/\/$/, ''), anonKey: envKey }
-  }
-
-  // 環境変数がない場合の localStorage フォールバック
-  try {
-    const saved = localStorage.getItem(CONFIG_KEY)
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      return {
-        url: (parsed.url || envUrl).replace(/\/$/, ''),
-        anonKey: parsed.anonKey || envKey,
-      }
-    }
-  } catch {
-    // ignore
-  }
-
   return { url: envUrl.replace(/\/$/, ''), anonKey: envKey }
-}
-
-export function saveSupabaseConfig(url: string, anonKey: string): void {
-  localStorage.setItem(CONFIG_KEY, JSON.stringify({ url: url.trim(), anonKey: anonKey.trim() }))
 }
 
 // 保存されているセッションを取得
@@ -77,14 +53,13 @@ export function clearSession(): void {
 // サインイン (Supabase Auth REST API)
 export async function signInWithEmailPassword(
   email: string,
-  password: string,
-  customConfig?: { url: string; anonKey: string }
+  password: string
 ): Promise<AuthSession> {
-  const config = customConfig || getSupabaseConfig()
+  const config = getSupabaseConfig()
 
   if (!config.url || !config.anonKey) {
     throw new Error(
-      'Supabase の URL または Anon Key が未設定です。環境変数 (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) または設定欄に入力してください。'
+      'Supabase の設定 (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) が環境変数に見つかりません。'
     )
   }
 
