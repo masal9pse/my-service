@@ -72,6 +72,7 @@ func main() {
 	http.HandleFunc("/todos/", todoHandler.HandleTodosRoute(staticDir))
 	http.HandleFunc("/api/todos", todoHandler.HandleTodos)
 	http.HandleFunc("/api/todos/", todoHandler.HandleTodos)
+	http.HandleFunc("/api/config", handler.HandleConfig(dbURL))
 
 	if _, err := os.Stat(filepath.Join(staticDir, "index.html")); err == nil {
 		log.Printf("Serving frontend from %s...", staticDir)

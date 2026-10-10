@@ -13,11 +13,41 @@ export interface AuthSession {
 
 const STORAGE_KEY = 'strandlog_auth_session'
 
-// Supabase URL & Anon Key の取得 (環境変数から解決)
-export function getSupabaseConfig(): { url: string; anonKey: string } {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || ''
+let cachedConfig: { url: string; anonKey: string } | null = null
+
+// Supabase URL & Anon Key の取得
+// 1. ビルド時環境変数 (Vite)
+// 2. バックエンド API (/api/config) から動的取得 (Cloud Run 同居配信など)
+export async function getSupabaseConfig(): Promise<{ url: string; anonKey: string }> {
+  if (cachedConfig && cachedConfig.url && cachedConfig.anonKey) {
+    return cachedConfig
+  }
+
+  // 1. ビルド時環境変数
+  const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-  return { url: envUrl.replace(/\/$/, ''), anonKey: envKey }
+  if (envUrl && envKey) {
+    cachedConfig = { url: envUrl, anonKey: envKey }
+    return cachedConfig
+  }
+
+  // 2. バックエンドの /api/config から動的取得
+  try {
+    const res = await fetch('/api/config')
+    if (res.ok) {
+      const data = await res.json()
+      const apiUrl = (data.supabaseUrl || '').replace(/\/$/, '')
+      const apiAnonKey = data.supabaseAnonKey || ''
+      if (apiUrl && apiAnonKey) {
+        cachedConfig = { url: apiUrl, anonKey: apiAnonKey }
+        return cachedConfig
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch config from /api/config:', err)
+  }
+
+  return { url: '', anonKey: '' }
 }
 
 // 保存されているセッションを取得
@@ -55,11 +85,11 @@ export async function signInWithEmailPassword(
   email: string,
   password: string
 ): Promise<AuthSession> {
-  const config = getSupabaseConfig()
+  const config = await getSupabaseConfig()
 
   if (!config.url || !config.anonKey) {
     throw new Error(
-      'Supabase の設定 (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) が環境変数に見つかりません。'
+      'Supabase の設定 (URL / ANON KEY) が見つかりません。サーバー環境変数をご確認ください。'
     )
   }
 

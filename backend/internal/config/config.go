@@ -100,17 +100,21 @@ func FindDatabaseURL() string {
 	return ""
 }
 
-// FindJWKSURL は SUPABASE_URL または DB接続文字列から JWKS (公開鍵) のURLを取得します
-func FindJWKSURL(dbURL string) string {
-	// 1. 環境変数 SUPABASE_URL
-	if u := os.Getenv("SUPABASE_URL"); u != "" {
-		return fmt.Sprintf("%s/auth/v1/.well-known/jwks.json", strings.TrimRight(strings.TrimSpace(u), "/"))
+// FindSupabaseURL は SUPABASE_URL / VITE_SUPABASE_URL または DB接続文字列から Supabase プロジェクトURLを取得します
+func FindSupabaseURL(dbURL string) string {
+	// 1. 環境変数 SUPABASE_URL / VITE_SUPABASE_URL
+	for _, key := range []string{"SUPABASE_URL", "VITE_SUPABASE_URL"} {
+		if u := os.Getenv(key); u != "" {
+			return strings.TrimRight(strings.TrimSpace(u), "/")
+		}
 	}
 
 	// 2. 環境変数 env (Secret Managerからファイル全体が注入された場合)
 	if envVal := os.Getenv("env"); envVal != "" {
-		if u := ParseEnvKey(envVal, "SUPABASE_URL"); u != "" {
-			return fmt.Sprintf("%s/auth/v1/.well-known/jwks.json", strings.TrimRight(u, "/"))
+		for _, key := range []string{"SUPABASE_URL", "VITE_SUPABASE_URL"} {
+			if u := ParseEnvKey(envVal, key); u != "" {
+				return strings.TrimRight(strings.TrimSpace(u), "/")
+			}
 		}
 	}
 
@@ -118,8 +122,10 @@ func FindJWKSURL(dbURL string) string {
 	candidatePaths := []string{".env", "../.env", "/secrets/env", "/secrets/.env"}
 	for _, path := range candidatePaths {
 		if data, err := os.ReadFile(path); err == nil {
-			if u := ParseEnvKey(string(data), "SUPABASE_URL"); u != "" {
-				return fmt.Sprintf("%s/auth/v1/.well-known/jwks.json", strings.TrimRight(u, "/"))
+			for _, key := range []string{"SUPABASE_URL", "VITE_SUPABASE_URL"} {
+				if u := ParseEnvKey(string(data), key); u != "" {
+					return strings.TrimRight(strings.TrimSpace(u), "/")
+				}
 			}
 		}
 	}
@@ -132,10 +138,50 @@ func FindJWKSURL(dbURL string) string {
 			if endIdx != -1 {
 				projectRef := sub[:endIdx]
 				log.Printf("Auto-detected Supabase project ref from database URL: %s\n", projectRef)
-				return fmt.Sprintf("https://%s.supabase.co/auth/v1/.well-known/jwks.json", projectRef)
+				return fmt.Sprintf("https://%s.supabase.co", projectRef)
 			}
 		}
 	}
 
 	return ""
 }
+
+// FindSupabaseAnonKey は環境変数やシークレットから Supabase Anon Key を取得します
+func FindSupabaseAnonKey() string {
+	for _, key := range []string{"VITE_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY"} {
+		if k := os.Getenv(key); k != "" {
+			return strings.TrimSpace(k)
+		}
+	}
+
+	if envVal := os.Getenv("env"); envVal != "" {
+		for _, key := range []string{"VITE_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY"} {
+			if k := ParseEnvKey(envVal, key); k != "" {
+				return strings.TrimSpace(k)
+			}
+		}
+	}
+
+	candidatePaths := []string{".env", "../.env", "/secrets/env", "/secrets/.env"}
+	for _, path := range candidatePaths {
+		if data, err := os.ReadFile(path); err == nil {
+			for _, key := range []string{"VITE_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY"} {
+				if k := ParseEnvKey(string(data), key); k != "" {
+					return strings.TrimSpace(k)
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+// FindJWKSURL は SUPABASE_URL または DB接続文字列から JWKS (公開鍵) のURLを取得します
+func FindJWKSURL(dbURL string) string {
+	u := FindSupabaseURL(dbURL)
+	if u != "" {
+		return fmt.Sprintf("%s/auth/v1/.well-known/jwks.json", u)
+	}
+	return ""
+}
+
