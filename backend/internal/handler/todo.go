@@ -10,16 +10,19 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
+
 	"myapi/internal/model"
 	"myapi/internal/repository"
 )
 
 type TodoHandler struct {
-	repo repository.TodoRepository
+	repo    repository.TodoRepository
+	keyfunc jwt.Keyfunc
 }
 
-func NewTodoHandler(repo repository.TodoRepository) *TodoHandler {
-	return &TodoHandler{repo: repo}
+func NewTodoHandler(repo repository.TodoRepository, keyfunc jwt.Keyfunc) *TodoHandler {
+	return &TodoHandler{repo: repo, keyfunc: keyfunc}
 }
 
 // HandleHello は GET /hello のハンドラーです
@@ -177,8 +180,25 @@ func (h *TodoHandler) HandleNotTodos(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
-// handleCreateTodo は POST /todos および POST /api/todos のリクエストを処理して新規Todoを作成します
+// handleCreateTodo は POST /todos および POST /api/todos のリクエストを処理して新規Todoを作成します（要認証）
 func (h *TodoHandler) handleCreateTodo(w http.ResponseWriter, r *http.Request) {
+	// 登録処理はログイン必須（JWT検証）
+	sub, err := ValidateBearerToken(r.Header.Get("Authorization"), h.keyfunc)
+	if err != nil {
+		if errors.Is(err, ErrNoJWKSKeyfunc) {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Authentication required to create todo: " + err.Error(),
+		})
+		return
+	}
+	if sub != "" {
+		log.Printf("Authorized user %s creating todo\n", sub)
+	}
+
 	var req model.CreateTodoRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)

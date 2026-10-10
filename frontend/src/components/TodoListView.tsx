@@ -10,7 +10,9 @@ import {
   Hash,
   Terminal,
   Plus,
-  Loader2
+  Loader2,
+  Lock,
+  LogIn
 } from 'lucide-react'
 
 interface TodoListViewProps {
@@ -20,6 +22,8 @@ interface TodoListViewProps {
   onRefresh: () => void
   onSelectTodo: (id: number) => void
   onCreateTodo?: (description: string) => Promise<void>
+  isLoggedIn: boolean
+  onOpenLogin: () => void
 }
 
 export function TodoListView({
@@ -29,6 +33,8 @@ export function TodoListView({
   onRefresh,
   onSelectTodo,
   onCreateTodo,
+  isLoggedIn,
+  onOpenLogin,
 }: TodoListViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [newDescription, setNewDescription] = useState('')
@@ -73,8 +79,30 @@ export function TodoListView({
         </div>
       </div>
 
-      {/* 新規Todo追加フォーム */}
-      {onCreateTodo && (
+      {/* 未ログイン時: サインイン案内バナー */}
+      {!isLoggedIn && (
+        <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 text-xs text-zinc-300">
+            <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-cyan-400 shrink-0">
+              <Lock className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <span className="font-semibold text-zinc-200">Todoの登録にはサインインが必要です</span>
+              <p className="text-zinc-500 text-[11px] mt-0.5">一覧や詳細の閲覧はサインイン不要で行えます。</p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenLogin}
+            className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-sm shrink-0"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>サインイン</span>
+          </button>
+        </div>
+      )}
+
+      {/* ログイン済み時: 新規Todo追加フォーム */}
+      {isLoggedIn && onCreateTodo && (
         <form onSubmit={handleCreateSubmit} className="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 backdrop-blur-sm space-y-3">
           <div className="flex items-center gap-2 text-xs font-semibold text-zinc-200">
             <Plus className="w-4 h-4 text-cyan-400" />

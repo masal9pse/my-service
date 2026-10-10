@@ -1,11 +1,16 @@
 import { useEffect, useState, useTransition } from 'react'
 import { fetchTodos, createTodo } from './api'
 import { Todo } from './types'
+import { getStoredSession, clearSession, AuthSession } from './auth'
 import { TodoListView } from './components/TodoListView'
 import { TodoDetailView } from './components/TodoDetailView'
+import { LoginModal } from './components/LoginModal'
 import { 
   Activity, 
-  BookOpen
+  BookOpen,
+  LogIn,
+  LogOut,
+  User
 } from 'lucide-react'
 
 type Route = 
@@ -43,6 +48,15 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // 認証状態管理
+  const [session, setSession] = useState<AuthSession | null>(getStoredSession)
+  const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false)
+
+  const handleLogout = () => {
+    clearSession()
+    setSession(null)
+  }
 
   // 一覧データの読み込み
   const loadData = () => {
@@ -88,9 +102,13 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Todo の新規作成
+  // Todo の新規作成 (要認証)
   const handleCreateTodo = async (description: string) => {
-    const newTodo = await createTodo(description)
+    if (!session?.accessToken) {
+      setIsLoginOpen(true)
+      throw new Error('Todoの投稿にはサインインが必要です。')
+    }
+    const newTodo = await createTodo(description, session.accessToken)
     setItems((prev) => [...prev, newTodo])
   }
 
@@ -123,7 +141,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-zinc-400">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs text-zinc-400">
           <button
             onClick={navigateToList}
             className={`px-3 py-1.5 rounded-lg border transition flex items-center gap-1.5 ${
@@ -135,6 +153,32 @@ export default function App() {
             <BookOpen className="w-3.5 h-3.5" />
             <span>一覧</span>
           </button>
+
+          {/* ログイン・ユーザー状態 */}
+          {session ? (
+            <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
+              <div className="hidden sm:flex items-center gap-1.5 text-zinc-300 bg-zinc-900/80 px-2.5 py-1 rounded-lg border border-zinc-800 text-xs">
+                <User className="w-3 h-3 text-cyan-400" />
+                <span className="font-mono max-w-[150px] truncate">{session.user.email}</span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-red-300 hover:border-red-900/60 hover:bg-red-950/20 transition flex items-center gap-1.5 text-xs"
+                title="サインアウト"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>サインアウト</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsLoginOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium transition flex items-center gap-1.5 text-xs shadow-sm"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>サインイン</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -148,6 +192,8 @@ export default function App() {
             onRefresh={loadData}
             onSelectTodo={navigateToDetail}
             onCreateTodo={handleCreateTodo}
+            isLoggedIn={!!session}
+            onOpenLogin={() => setIsLoginOpen(true)}
           />
         ) : (
           <TodoDetailView
@@ -156,6 +202,13 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* サインインモーダル */}
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onSuccess={(newSession) => setSession(newSession)}
+      />
 
       {/* フッター */}
       <footer className="border-t border-zinc-900 py-6 text-center text-xs text-zinc-600 font-mono">

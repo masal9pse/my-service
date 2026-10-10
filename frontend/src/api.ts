@@ -53,19 +53,33 @@ export async function fetchNotTodos(): Promise<NotTodo[]> {
   return data
 }
 
-export async function createTodo(description: string): Promise<Todo> {
+export async function createTodo(description: string, token?: string): Promise<Todo> {
   const url = `${API_BASE}/todos`
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
+    headers,
     body: JSON.stringify({ description }),
   })
 
   if (!res.ok) {
     const errorBody = await res.text().catch(() => '')
+    try {
+      const parsed = JSON.parse(errorBody)
+      if (parsed.error) {
+        throw new Error(parsed.error)
+      }
+    } catch (e: any) {
+      if (e.message && e.message !== errorBody) throw e
+    }
     throw new Error(`Failed to create todo (${res.status}): ${errorBody || res.statusText}`)
   }
 

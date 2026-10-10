@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/golang-jwt/jwt/v5"
+
 	"myapi/internal/config"
 	"myapi/internal/handler"
 	"myapi/internal/repository"
@@ -40,24 +42,24 @@ func main() {
 
 	// Supabase JWKS (公開鍵) の初期化
 	jwksURL := config.FindJWKSURL(dbURL)
-	var jwksKeyfunc = func() {
-		if jwksURL == "" {
-			log.Println("WARNING: Supabase URL (SUPABASE_URL) is not found. Auth middleware will reject requests.")
-			return
-		}
-		_, err := config.InitJWKS(jwksURL)
+	var keyfunc jwt.Keyfunc
+	if jwksURL == "" {
+		log.Println("WARNING: Supabase URL (SUPABASE_URL) is not found. Auth middleware will reject requests.")
+	} else {
+		kf, err := config.InitJWKS(jwksURL)
 		if err != nil {
 			log.Printf("ERROR: Failed to initialize JWKS: %v\n", err)
+		} else {
+			keyfunc = kf
 		}
 	}
-	jwksKeyfunc()
 
 	// リポジトリ & ハンドラー初期化
 	var repo repository.TodoRepository
 	if db != nil {
 		repo = repository.NewTodoRepository(db)
 	}
-	todoHandler := handler.NewTodoHandler(repo)
+	todoHandler := handler.NewTodoHandler(repo, keyfunc)
 
 	// 静的フロントエンド配信ディレクトリの判定
 	staticDir := findStaticDir()
