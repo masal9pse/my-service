@@ -129,3 +129,81 @@ export async function signInWithEmailPassword(
   saveSession(session)
   return session
 }
+
+export interface SignUpResult {
+  session: AuthSession | null
+  user: AuthUser
+  needsEmailConfirmation: boolean
+}
+
+// 会員登録 (Supabase Auth REST API)
+export async function signUpWithEmailPassword(
+  email: string,
+  password: string
+): Promise<SignUpResult> {
+  const config = await getSupabaseConfig()
+
+  if (!config.url || !config.anonKey) {
+    throw new Error(
+      'Supabase の設定 (URL / ANON KEY) が見つかりません。サーバー環境変数をご確認ください。'
+    )
+  }
+
+  const endpoint = `${config.url}/auth/v1/signup`
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'apikey': config.anonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  })
+
+  const data = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    const msg = data?.error_description || data?.msg || data?.message || response.statusText
+    throw new Error(`会員登録に失敗しました: ${msg}`)
+  }
+
+  // Supabase はレスポンスとして直下に user または { access_token, user } を含む
+  const userObj = data?.user || (data?.id ? data : null)
+  if (!userObj) {
+    throw new Error('会員登録レスポンスに必要なユーザー情報が含まれていません。')
+  }
+
+  // Supabaseで既存ユーザー登録時、メール列挙防止で identities が空配列で返されることがある
+  if (Array.isArray(userObj.identities) && userObj.identities.length === 0) {
+    throw new Error('このメールアドレスは既に登録されています。サインインしてください。')
+  }
+
+  const user: AuthUser = {
+    id: userObj.id,
+    email: userObj.email || email,
+    role: userObj.role,
+  }
+
+  // 自動サインインできた場合 (Email Confirmation が OFF の設定)
+  if (data?.access_token) {
+    const session: AuthSession = {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: Math.floor(Date.now() / 1000) + (data.expires_in || 3600),
+      user,
+    }
+    saveSession(session)
+    return {
+      session,
+      user,
+      needsEmailConfirmation: false,
+    }
+  }
+
+  // メール確認が必要な場合 (Supabase のデフォルト設定)
+  return {
+    session: null,
+    user,
+    needsEmailConfirmation: true,
+  }
+}
