@@ -4,14 +4,13 @@ import { Todo } from './types'
 import { getStoredSession, clearSession, AuthSession } from './auth'
 import { TodoListView } from './components/TodoListView'
 import { TodoDetailView } from './components/TodoDetailView'
-import { LoginModal, AuthModalMode } from './components/LoginModal'
+import { LoginModal } from './components/LoginModal'
 import { 
   Activity, 
   BookOpen,
   LogIn,
   LogOut,
-  User,
-  UserPlus
+  User
 } from 'lucide-react'
 
 type Route = 
@@ -53,12 +52,6 @@ export default function App() {
   // 認証状態管理
   const [session, setSession] = useState<AuthSession | null>(getStoredSession)
   const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false)
-  const [authMode, setAuthMode] = useState<AuthModalMode>('signin')
-
-  const openAuthModal = (mode: AuthModalMode = 'signin') => {
-    setAuthMode(mode)
-    setIsLoginOpen(true)
-  }
 
   const handleLogout = () => {
     clearSession()
@@ -178,22 +171,13 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => openAuthModal('signin')}
-                className="px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-medium transition flex items-center gap-1.5 text-xs"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>サインイン</span>
-              </button>
-              <button
-                onClick={() => openAuthModal('signup')}
-                className="px-2.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium transition flex items-center gap-1.5 text-xs shadow-sm shadow-cyan-950/40"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>新規登録</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setIsLoginOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium transition flex items-center gap-1.5 text-xs shadow-sm"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>サインイン</span>
+            </button>
           )}
         </div>
       </header>
@@ -209,7 +193,7 @@ export default function App() {
             onSelectTodo={navigateToDetail}
             onCreateTodo={handleCreateTodo}
             isLoggedIn={!!session}
-            onOpenLogin={(mode) => openAuthModal(mode || 'signin')}
+            onOpenLogin={() => setIsLoginOpen(true)}
           />
         ) : (
           <TodoDetailView
@@ -219,10 +203,9 @@ export default function App() {
         )}
       </main>
 
-      {/* 認証モーダル (サインイン / 新規登録) */}
+      {/* サインインモーダル */}
       <LoginModal
         isOpen={isLoginOpen}
-        initialMode={authMode}
         onClose={() => setIsLoginOpen(false)}
         onSuccess={(newSession) => setSession(newSession)}
       />

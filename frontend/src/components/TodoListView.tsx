@@ -12,8 +12,7 @@ import {
   Plus,
   Loader2,
   Lock,
-  LogIn,
-  UserPlus
+  LogIn
 } from 'lucide-react'
 
 interface TodoListViewProps {
@@ -24,7 +23,7 @@ interface TodoListViewProps {
   onSelectTodo: (id: number) => void
   onCreateTodo?: (description: string) => Promise<void>
   isLoggedIn: boolean
-  onOpenLogin: (mode?: 'signin' | 'signup') => void
+  onOpenLogin: () => void
 }
 
 export function TodoListView({
@@ -92,22 +91,13 @@ export function TodoListView({
               <p className="text-zinc-500 text-[11px] mt-0.5">一覧や詳細の閲覧はサインイン不要で行えます。</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => onOpenLogin('signin')}
-              className="px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-850 hover:bg-zinc-800 text-zinc-300 text-xs font-medium transition flex items-center gap-1.5"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>サインイン</span>
-            </button>
-            <button
-              onClick={() => onOpenLogin('signup')}
-              className="px-2.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-sm shadow-cyan-950/40"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>新規登録</span>
-            </button>
-          </div>
+          <button
+            onClick={onOpenLogin}
+            className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-sm shrink-0"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>サインイン</span>
+          </button>
         </div>
       )}
 
