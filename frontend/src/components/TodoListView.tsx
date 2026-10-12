@@ -12,7 +12,8 @@ import {
   Plus,
   Loader2,
   Lock,
-  LogIn
+  LogIn,
+  UserPlus
 } from 'lucide-react'
 
 interface TodoListViewProps {
@@ -24,6 +25,7 @@ interface TodoListViewProps {
   onCreateTodo?: (description: string) => Promise<void>
   isLoggedIn: boolean
   onOpenLogin: () => void
+  onOpenRegister?: () => void
 }
 
 export function TodoListView({
@@ -35,6 +37,7 @@ export function TodoListView({
   onCreateTodo,
   isLoggedIn,
   onOpenLogin,
+  onOpenRegister,
 }: TodoListViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [newDescription, setNewDescription] = useState('')
@@ -91,13 +94,24 @@ export function TodoListView({
               <p className="text-zinc-500 text-[11px] mt-0.5">一覧や詳細の閲覧はサインイン不要で行えます。</p>
             </div>
           </div>
-          <button
-            onClick={onOpenLogin}
-            className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-sm shrink-0"
-          >
-            <LogIn className="w-3.5 h-3.5" />
-            <span>サインイン</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={onOpenLogin}
+              className="px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs transition flex items-center gap-1.5"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>サインイン</span>
+            </button>
+            {onOpenRegister && (
+              <button
+                onClick={onOpenRegister}
+                className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-sm shadow-cyan-950/50"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>会員登録</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 

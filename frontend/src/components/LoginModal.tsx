@@ -6,9 +6,10 @@ interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: (session: AuthSession) => void
+  onOpenRegister?: () => void
 }
 
-export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
+export function LoginModal({ isOpen, onClose, onSuccess, onOpenRegister }: LoginModalProps) {
   const [email, setEmail] = useState('returnymgstokh@gmail.com')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -120,6 +121,23 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
               </>
             )}
           </button>
+
+          {/* 新規会員登録スモークテスト導線 */}
+          {onOpenRegister && (
+            <div className="pt-2 text-center text-[11px] text-zinc-400 border-t border-zinc-800/60">
+              <span>アカウントをお持ちでないですか？</span>{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  onClose()
+                  onOpenRegister()
+                }}
+                className="text-cyan-400 hover:text-cyan-300 font-medium underline underline-offset-2 transition"
+              >
+                会員登録
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

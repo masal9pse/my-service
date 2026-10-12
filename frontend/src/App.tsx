@@ -5,12 +5,14 @@ import { getStoredSession, clearSession, AuthSession } from './auth'
 import { TodoListView } from './components/TodoListView'
 import { TodoDetailView } from './components/TodoDetailView'
 import { LoginModal } from './components/LoginModal'
+import { RegisterModal } from './components/RegisterModal'
 import { 
   Activity, 
   BookOpen,
   LogIn,
   LogOut,
-  User
+  User,
+  UserPlus
 } from 'lucide-react'
 
 type Route = 
@@ -52,6 +54,21 @@ export default function App() {
   // 認証状態管理
   const [session, setSession] = useState<AuthSession | null>(getStoredSession)
   const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false)
+  const [isRegisterOpen, setIsRegisterOpen] = useState<boolean>(false)
+
+  // 会員登録ボタンクリック（スモークテスト）
+  const handleOpenRegister = () => {
+    // TODO: [GA4 スモークテスト] 会員登録の需要（CVR）を計測するイベント
+    // GA4 導入時に以下のカスタムイベントを発火させて、訪問者のうち何人が登録しようとしたかを可視化する。
+    // 例:
+    // if (typeof window !== 'undefined' && (window as any).gtag) {
+    //   (window as any).gtag('event', 'click_signup_button', {
+    //     event_category: 'smoke_test',
+    //     event_label: 'user_registration_interest',
+    //   })
+    // }
+    setIsRegisterOpen(true)
+  }
 
   const handleLogout = () => {
     clearSession()
@@ -171,13 +188,22 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setIsLoginOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium transition flex items-center gap-1.5 text-xs shadow-sm"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>サインイン</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsLoginOpen(true)}
+                className="px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white transition flex items-center gap-1.5 text-xs"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>サインイン</span>
+              </button>
+              <button
+                onClick={handleOpenRegister}
+                className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium transition flex items-center gap-1.5 text-xs shadow-sm shadow-cyan-950/50"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>会員登録</span>
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -194,6 +220,7 @@ export default function App() {
             onCreateTodo={handleCreateTodo}
             isLoggedIn={!!session}
             onOpenLogin={() => setIsLoginOpen(true)}
+            onOpenRegister={handleOpenRegister}
           />
         ) : (
           <TodoDetailView
@@ -208,6 +235,13 @@ export default function App() {
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
         onSuccess={(newSession) => setSession(newSession)}
+        onOpenRegister={handleOpenRegister}
+      />
+
+      {/* 新規会員登録スモークテストモーダル */}
+      <RegisterModal
+        isOpen={isRegisterOpen}
+        onClose={() => setIsRegisterOpen(false)}
       />
 
       {/* フッター */}
