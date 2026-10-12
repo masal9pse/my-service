@@ -1,6 +1,4 @@
-# StrandLog (My Portfolio)
-
-> 目標達成のための「やること（Todo）」と「やらないこと（Not-Todo）」を整理・可視化し、集中力を最大化するタスク＆ポートフォリオマネジメントWebアプリケーション。
+# My Portfolio
 
 ---
 
