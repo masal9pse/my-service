@@ -195,6 +195,7 @@ my-portfolio/
 ├── SPEC.md                          # プロダクト仕様書 (StrandLog)
 │
 ├── docs/                            # 各種ドキュメント
+│   ├── infrastructure.md            # インフラ構成仕様書
 │   └── adr/                         # Architecture Decision Records (設計意思決定記録)
 │       └── 0001-serve-frontend-from-go-backend.md
 │
