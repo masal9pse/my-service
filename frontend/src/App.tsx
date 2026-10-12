@@ -7,9 +7,8 @@ import { TodoDetailView } from './components/TodoDetailView'
 import { LoginModal } from './components/LoginModal'
 import { RegisterModal } from './components/RegisterModal'
 import { validate as isValidUUID } from 'uuid'
-import { v4 as uuidv4 } from 'uuid';
 
-import { 
+import {
   Activity, 
   BookOpen,
   LogIn,
