@@ -1,5 +1,5 @@
 import { validate as isValidUUID } from 'uuid'
-import { NotTodo, Todo } from './types'
+import { Goal, NotTodo, Todo } from './types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -58,7 +58,7 @@ export async function fetchNotTodos(): Promise<NotTodo[]> {
   return data
 }
 
-export async function createTodo(description: string, token?: string): Promise<Todo> {
+export async function createTodo(description: string, token?: string, goalId?: string): Promise<Todo> {
   const url = `${API_BASE}/todos`
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -69,10 +69,15 @@ export async function createTodo(description: string, token?: string): Promise<T
     headers['Authorization'] = `Bearer ${token}`
   }
 
+  const payload: { description: string; goal_id?: string } = { description }
+  if (goalId) {
+    payload.goal_id = goalId
+  }
+
   const res = await fetch(url, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ description }),
+    body: JSON.stringify(payload),
   })
 
   if (!res.ok) {
@@ -90,5 +95,75 @@ export async function createTodo(description: string, token?: string): Promise<T
 
   const data = await res.json()
   return data
+}
+
+export async function fetchGoals(token?: string): Promise<Goal[]> {
+  const url = `${API_BASE}/goals`
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const res = await fetch(url, { headers })
+  if (!res.ok) {
+    const errorBody = await res.text().catch(() => '')
+    throw new Error(`Failed to fetch goals (${res.status}): ${errorBody || res.statusText}`)
+  }
+  return await res.json()
+}
+
+export async function fetchGoalById(id: string, token?: string): Promise<Goal> {
+  if (!isValidUUID(id)) {
+    throw new Error(`Invalid UUID format: "${id}"`)
+  }
+
+  const url = `${API_BASE}/goals/${id}`
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const res = await fetch(url, { headers })
+  if (!res.ok) {
+    const errorBody = await res.text().catch(() => '')
+    throw new Error(`Failed to fetch goal (${res.status}): ${errorBody || res.statusText}`)
+  }
+  return await res.json()
+}
+
+export async function createGoal(
+  data: { title: string; description?: string; deadline?: string },
+  token: string
+): Promise<Goal> {
+  const url = `${API_BASE}/goals`
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  })
+
+  if (!res.ok) {
+    const errorBody = await res.text().catch(() => '')
+    try {
+      const parsed = JSON.parse(errorBody)
+      if (parsed.error) {
+        throw new Error(parsed.error)
+      }
+    } catch (e: any) {
+      if (e.message && e.message !== errorBody) throw e
+    }
+    throw new Error(`Failed to create goal (${res.status}): ${errorBody || res.statusText}`)
+  }
+  return await res.json()
 }
 

@@ -56,10 +56,13 @@ func main() {
 
 	// リポジトリ & ハンドラー初期化
 	var repo repository.TodoRepository
+	var goalRepo repository.GoalRepository
 	if db != nil {
 		repo = repository.NewTodoRepository(db)
+		goalRepo = repository.NewGoalRepository(db)
 	}
 	todoHandler := handler.NewTodoHandler(repo, keyfunc)
+	goalHandler := handler.NewGoalHandler(goalRepo, keyfunc)
 
 	// 静的フロントエンド配信ディレクトリの判定
 	staticDir := findStaticDir()
@@ -72,6 +75,10 @@ func main() {
 	http.HandleFunc("/todos/", todoHandler.HandleTodosRoute(staticDir))
 	http.HandleFunc("/api/todos", todoHandler.HandleTodos)
 	http.HandleFunc("/api/todos/", todoHandler.HandleTodos)
+	http.HandleFunc("/goals", goalHandler.HandleGoalsRoute(staticDir))
+	http.HandleFunc("/goals/", goalHandler.HandleGoalsRoute(staticDir))
+	http.HandleFunc("/api/goals", goalHandler.HandleGoals)
+	http.HandleFunc("/api/goals/", goalHandler.HandleGoals)
 	http.HandleFunc("/api/config", handler.HandleConfig(dbURL))
 
 	if _, err := os.Stat(filepath.Join(staticDir, "index.html")); err == nil {

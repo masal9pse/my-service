@@ -217,7 +217,14 @@ func (h *TodoHandler) handleCreateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.repo.CreateTodo(r.Context(), trimmed)
+	var userUUID *uuid.UUID
+	if sub != "" {
+		if parsed, err := uuid.Parse(sub); err == nil {
+			userUUID = &parsed
+		}
+	}
+
+	item, err := h.repo.CreateTodo(r.Context(), trimmed, req.GoalID, userUUID)
 	if err != nil {
 		log.Printf("Error creating todo: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)

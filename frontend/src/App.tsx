@@ -1,14 +1,14 @@
 import { useEffect, useState, useTransition } from 'react'
-import { fetchTodos, createTodo } from './api'
-import { Todo } from './types'
+import { fetchTodos, createTodo, fetchGoals, createGoal } from './api'
+import { Todo, Goal } from './types'
 import { getStoredSession, clearSession, AuthSession } from './auth'
 import { TodoListView } from './components/TodoListView'
 import { TodoDetailView } from './components/TodoDetailView'
 import { LoginModal } from './components/LoginModal'
 import { RegisterModal } from './components/RegisterModal'
+import { CreateGoalModal } from './components/CreateGoalModal'
 import { validate as isValidUUID } from 'uuid'
-
-import {
+import { 
   Activity, 
   BookOpen,
   LogIn,
@@ -46,6 +46,8 @@ function parseRouteFromLocation(): Route {
 export default function App() {
   const [route, setRoute] = useState<Route>(parseRouteFromLocation)
   const [items, setItems] = useState<Todo[]>([])
+  const [goals, setGoals] = useState<Goal[]>([])
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -54,18 +56,10 @@ export default function App() {
   const [session, setSession] = useState<AuthSession | null>(getStoredSession)
   const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false)
   const [isRegisterOpen, setIsRegisterOpen] = useState<boolean>(false)
+  const [isCreateGoalOpen, setIsCreateGoalOpen] = useState<boolean>(false)
 
   // 会員登録ボタンクリック（スモークテスト）
   const handleOpenRegister = () => {
-    // TODO: [GA4 スモークテスト] 会員登録の需要（CVR）を計測するイベント
-    // GA4 導入時に以下のカスタムイベントを発火させて、訪問者のうち何人が登録しようとしたかを可視化する。
-    // 例:
-    // if (typeof window !== 'undefined' && (window as any).gtag) {
-    //   (window as any).gtag('event', 'click_signup_button', {
-    //     event_category: 'smoke_test',
-    //     event_label: 'user_registration_interest',
-    //   })
-    // }
     setIsRegisterOpen(true)
   }
 
@@ -74,14 +68,20 @@ export default function App() {
     setSession(null)
   }
 
-  // 一覧データの読み込み
+  // 一覧データの読み込み (Todos & Goals)
   const loadData = () => {
     setLoading(true)
     setError(null)
-    fetchTodos()
-      .then((data) => {
+
+    const token = session?.accessToken
+    Promise.all([
+      fetchTodos(),
+      fetchGoals(token).catch(() => [] as Goal[]),
+    ])
+      .then(([todosData, goalsData]) => {
         startTransition(() => {
-          setItems(data)
+          setItems(todosData)
+          setGoals(goalsData)
           setLoading(false)
         })
       })
@@ -93,7 +93,7 @@ export default function App() {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [session?.accessToken])
 
   // ブラウザの進む/戻る (popstate) のハンドリング
   useEffect(() => {
@@ -119,13 +119,24 @@ export default function App() {
   }
 
   // Todo の新規作成 (要認証)
-  const handleCreateTodo = async (description: string) => {
+  const handleCreateTodo = async (description: string, goalId?: string) => {
     if (!session?.accessToken) {
       setIsLoginOpen(true)
       throw new Error('Todoの投稿にはサインインが必要です。')
     }
-    const newTodo = await createTodo(description, session.accessToken)
+    const newTodo = await createTodo(description, session.accessToken, goalId)
     setItems((prev) => [...prev, newTodo])
+  }
+
+  // Goal の新規作成 (要認証)
+  const handleCreateGoal = async (data: { title: string; description?: string; deadline?: string }) => {
+    if (!session?.accessToken) {
+      setIsLoginOpen(true)
+      throw new Error('目標の作成にはサインインが必要です。')
+    }
+    const newGoal = await createGoal(data, session.accessToken)
+    setGoals((prev) => [newGoal, ...prev])
+    setSelectedGoalId(newGoal.id) // 作成した目標をアクティブにする
   }
 
   return (
@@ -148,12 +159,12 @@ export default function App() {
                 STRANDLOG
               </h1>
               <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-800 text-cyan-400 font-mono border border-zinc-700/50">
-                TODOS
+                GOALS & TODOS
               </span>
             </div>
             <p className="text-[11px] text-zinc-400">
               {route.page === 'list' 
-                ? 'Todo一覧 / マークダウン詳細' 
+                ? '目標・Todo一覧 / マークダウン詳細' 
                 : `Todo #${route.id.length > 8 ? route.id.slice(0, 8) : route.id} 詳細画面`}
             </p>
           </div>
@@ -214,6 +225,16 @@ export default function App() {
         {route.page === 'list' ? (
           <TodoListView
             items={items}
+            goals={goals}
+            selectedGoalId={selectedGoalId}
+            onSelectGoal={setSelectedGoalId}
+            onOpenCreateGoal={() => {
+              if (!session) {
+                setIsLoginOpen(true)
+              } else {
+                setIsCreateGoalOpen(true)
+              }
+            }}
             loading={loading || isPending}
             error={error}
             onRefresh={loadData}
@@ -231,6 +252,13 @@ export default function App() {
         )}
       </main>
 
+      {/* 目標作成モーダル */}
+      <CreateGoalModal
+        isOpen={isCreateGoalOpen}
+        onClose={() => setIsCreateGoalOpen(false)}
+        onCreateGoal={handleCreateGoal}
+      />
+
       {/* サインインモーダル */}
       <LoginModal
         isOpen={isLoginOpen}
@@ -247,7 +275,7 @@ export default function App() {
 
       {/* フッター */}
       <footer className="border-t border-zinc-900 py-6 text-center text-xs text-zinc-600 font-mono">
-        <p>STRANDLOG • Todo 一覧・マークダウン詳細ビューアー</p>
+        <p>STRANDLOG • 目標 & Todo 一覧・マークダウン詳細ビューアー</p>
       </footer>
     </div>
   )

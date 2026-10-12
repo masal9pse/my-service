@@ -17,7 +17,7 @@ type TodoRepository interface {
 	GetAllTodos(ctx context.Context) ([]model.Todo, error)
 	GetTodoByID(ctx context.Context, id uuid.UUID) (*model.Todo, error)
 	GetAllNotTodos(ctx context.Context) ([]model.NotTodo, error)
-	CreateTodo(ctx context.Context, description string) (*model.Todo, error)
+	CreateTodo(ctx context.Context, description string, goalID *uuid.UUID, userID *uuid.UUID) (*model.Todo, error)
 }
 
 type sqlTodoRepository struct {
@@ -29,7 +29,7 @@ func NewTodoRepository(db *sql.DB) TodoRepository {
 }
 
 func (r *sqlTodoRepository) GetAllTodos(ctx context.Context) ([]model.Todo, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT id, COALESCE(description, '') FROM todos ORDER BY id ASC")
+	rows, err := r.db.QueryContext(ctx, "SELECT id, goal_id, user_id, COALESCE(description, '') FROM todos ORDER BY created_at ASC, id ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (r *sqlTodoRepository) GetAllTodos(ctx context.Context) ([]model.Todo, erro
 	items := make([]model.Todo, 0)
 	for rows.Next() {
 		var item model.Todo
-		if err := rows.Scan(&item.ID, &item.Description); err != nil {
+		if err := rows.Scan(&item.ID, &item.GoalID, &item.UserID, &item.Description); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -53,7 +53,7 @@ func (r *sqlTodoRepository) GetAllTodos(ctx context.Context) ([]model.Todo, erro
 
 func (r *sqlTodoRepository) GetTodoByID(ctx context.Context, id uuid.UUID) (*model.Todo, error) {
 	var item model.Todo
-	err := r.db.QueryRowContext(ctx, "SELECT id, COALESCE(description, '') FROM todos WHERE id = $1", id).Scan(&item.ID, &item.Description)
+	err := r.db.QueryRowContext(ctx, "SELECT id, goal_id, user_id, COALESCE(description, '') FROM todos WHERE id = $1", id).Scan(&item.ID, &item.GoalID, &item.UserID, &item.Description)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -98,14 +98,13 @@ func (r *sqlTodoRepository) GetAllNotTodos(ctx context.Context) ([]model.NotTodo
 // 2. COALESCE(description, '') の役割:
 //    万が一カラム値が NULL だった場合に空文字 "" にフォールバックします。
 //    Goの string 型変数に NULL を読み込もうとした時のスキャンエラーを防止するための型安全対策です。
-func (r *sqlTodoRepository) CreateTodo(ctx context.Context, description string) (*model.Todo, error) {
+func (r *sqlTodoRepository) CreateTodo(ctx context.Context, description string, goalID *uuid.UUID, userID *uuid.UUID) (*model.Todo, error) {
 	var item model.Todo
 	err := r.db.QueryRowContext(
 		ctx,
-		// $1 に description の値が安全にバインドされます
-		"INSERT INTO todos (description) VALUES ($1) RETURNING id, COALESCE(description, '')",
-		description,
-	).Scan(&item.ID, &item.Description)
+		"INSERT INTO todos (description, goal_id, user_id) VALUES ($1, $2, $3) RETURNING id, goal_id, user_id, COALESCE(description, '')",
+		description, goalID, userID,
+	).Scan(&item.ID, &item.GoalID, &item.UserID, &item.Description)
 	if err != nil {
 		return nil, err
 	}

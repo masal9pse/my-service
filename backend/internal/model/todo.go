@@ -13,13 +13,16 @@ type Response struct {
 
 // Todo は todos テーブルのレコード構造体
 type Todo struct {
-	ID          uuid.UUID `json:"id"`
-	Description string    `json:"description"`
+	ID          uuid.UUID  `json:"id"`
+	GoalID      *uuid.UUID `json:"goal_id,omitempty"`
+	UserID      *uuid.UUID `json:"user_id,omitempty"`
+	Description string     `json:"description"`
 }
 
 // CreateTodoRequest は Todo 作成リクエストの構造体
 type CreateTodoRequest struct {
-	Description string `json:"description"`
+	GoalID      *uuid.UUID `json:"goal_id,omitempty"`
+	Description string     `json:"description"`
 }
 
 // NotTodo は not_todos テーブルのレコード構造体
