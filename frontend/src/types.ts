@@ -1,3 +1,5 @@
+export type UUID = string
+
 export interface NotTodo {
   id: number
   title: string
@@ -6,6 +8,6 @@ export interface NotTodo {
 }
 
 export interface Todo {
-  id: number
+  id: UUID
   description: string
 }

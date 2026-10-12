@@ -21,7 +21,7 @@ interface TodoListViewProps {
   loading: boolean
   error: string | null
   onRefresh: () => void
-  onSelectTodo: (id: number) => void
+  onSelectTodo: (id: string) => void
   onCreateTodo?: (description: string) => Promise<void>
   isLoggedIn: boolean
   onOpenLogin: () => void
@@ -243,13 +243,16 @@ export function TodoListView({
                   <div className="flex-1 min-w-0">
                     {/* メタ情報 */}
                     <div className="flex items-center gap-2 text-xs font-mono mb-2">
-                      <span className="flex items-center gap-0.5 text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
+                      <span 
+                        className="flex items-center gap-0.5 text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40"
+                        title={item.id}
+                      >
                         <Hash className="w-3 h-3" />
-                        {item.id}
+                        {item.id.length > 8 ? item.id.slice(0, 8) : item.id}
                       </span>
                       <span className="text-zinc-500 flex items-center gap-1">
                         <FileText className="w-3.5 h-3.5" />
-                        todo-{item.id}.md
+                        todo-{item.id.length > 8 ? item.id.slice(0, 8) : item.id}.md
                       </span>
                     </div>
 

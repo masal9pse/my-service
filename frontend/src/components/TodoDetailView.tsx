@@ -5,7 +5,7 @@ import { MarkdownViewer } from './MarkdownViewer'
 import { ArrowLeft, RefreshCw, AlertCircle, FileCode, Hash, Share2, Check } from 'lucide-react'
 
 interface TodoDetailViewProps {
-  todoId: number
+  todoId: string
   onBack: () => void
 }
 
@@ -119,12 +119,15 @@ export function TodoDetailView({ todoId, onBack }: TodoDetailViewProps) {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-cyan-400 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40 flex items-center gap-0.5">
-                    <Hash className="w-3 h-3" />
-                    {todo.id}
+                  <span 
+                    className="text-xs font-mono text-cyan-400 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40 flex items-center gap-0.5 max-w-[220px] truncate"
+                    title={todo.id}
+                  >
+                    <Hash className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{todo.id}</span>
                   </span>
                   <h1 className="text-base font-bold text-zinc-100">
-                    Todo #{todo.id}
+                    Todo #{todo.id.length > 8 ? todo.id.slice(0, 8) : todo.id}
                   </h1>
                 </div>
               </div>
@@ -134,7 +137,7 @@ export function TodoDetailView({ todoId, onBack }: TodoDetailViewProps) {
           {/* マークダウンビューアー */}
           <MarkdownViewer
             content={todo.description || '*(本文はありません)*'}
-            title={`todo-${todo.id}.md`}
+            title={`todo-${todo.id.length > 8 ? todo.id.slice(0, 8) : todo.id}.md`}
           />
         </div>
       )}

@@ -1,3 +1,4 @@
+import { validate as isValidUUID } from 'uuid'
 import { NotTodo, Todo } from './types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -19,7 +20,11 @@ export async function fetchTodos(): Promise<Todo[]> {
   return data
 }
 
-export async function fetchTodoById(id: number): Promise<Todo> {
+export async function fetchTodoById(id: string): Promise<Todo> {
+  if (!isValidUUID(id)) {
+    throw new Error(`Invalid UUID format: "${id}"`)
+  }
+
   const url = `${API_BASE}/todos/${id}`
   const res = await fetch(url, {
     headers: {

@@ -6,6 +6,9 @@ import { TodoListView } from './components/TodoListView'
 import { TodoDetailView } from './components/TodoDetailView'
 import { LoginModal } from './components/LoginModal'
 import { RegisterModal } from './components/RegisterModal'
+import { validate as isValidUUID } from 'uuid'
+import { v4 as uuidv4 } from 'uuid';
+
 import { 
   Activity, 
   BookOpen,
@@ -17,28 +20,25 @@ import {
 
 type Route = 
   | { page: 'list' }
-  | { page: 'detail'; id: number }
+  | { page: 'detail'; id: string }
 
 // 現在のパス・クエリからルートをパースするヘルパー
 function parseRouteFromLocation(): Route {
   const path = window.location.pathname
   const params = new URLSearchParams(window.location.search)
 
-  // クエリパラメータ ?todo=123 対応
+  // クエリパラメータ ?todo=uuid 対応
   if (params.has('todo')) {
-    const id = parseInt(params.get('todo')!, 10)
-    if (!isNaN(id)) {
+    const id = params.get('todo')!.trim()
+    if (isValidUUID(id)) {
       return { page: 'detail', id }
     }
   }
 
-  // パス /todos/123 対応
-  const match = path.match(/^\/todos\/(\d+)$/)
-  if (match) {
-    const id = parseInt(match[1], 10)
-    if (!isNaN(id)) {
-      return { page: 'detail', id }
-    }
+  // パス /todos/:uuid 対応
+  const match = path.match(/^\/todos\/([^/]+)$/)
+  if (match && isValidUUID(match[1])) {
+    return { page: 'detail', id: match[1] }
   }
 
   return { page: 'list' }
@@ -106,7 +106,7 @@ export default function App() {
   }, [])
 
   // 詳細画面への遷移
-  const navigateToDetail = (id: number) => {
+  const navigateToDetail = (id: string) => {
     window.history.pushState({}, '', `/todos/${id}`)
     setRoute({ page: 'detail', id })
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -153,7 +153,9 @@ export default function App() {
               </span>
             </div>
             <p className="text-[11px] text-zinc-400">
-              {route.page === 'list' ? 'Todo一覧 / マークダウン詳細' : `Todo #${route.id} 詳細画面`}
+              {route.page === 'list' 
+                ? 'Todo一覧 / マークダウン詳細' 
+                : `Todo #${route.id.length > 8 ? route.id.slice(0, 8) : route.id} 詳細画面`}
             </p>
           </div>
         </div>
