@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"uuid"
 
 	"myapi/internal/model"
 )
@@ -14,7 +15,7 @@ var (
 
 type TodoRepository interface {
 	GetAllTodos(ctx context.Context) ([]model.Todo, error)
-	GetTodoByID(ctx context.Context, id int64) (*model.Todo, error)
+	GetTodoByID(ctx context.Context, id uuid.UUID) (*model.Todo, error)
 	GetAllNotTodos(ctx context.Context) ([]model.NotTodo, error)
 	CreateTodo(ctx context.Context, description string) (*model.Todo, error)
 }
@@ -50,7 +51,7 @@ func (r *sqlTodoRepository) GetAllTodos(ctx context.Context) ([]model.Todo, erro
 	return items, nil
 }
 
-func (r *sqlTodoRepository) GetTodoByID(ctx context.Context, id int64) (*model.Todo, error) {
+func (r *sqlTodoRepository) GetTodoByID(ctx context.Context, id uuid.UUID) (*model.Todo, error) {
 	var item model.Todo
 	err := r.db.QueryRowContext(ctx, "SELECT id, COALESCE(description, '') FROM todos WHERE id = $1", id).Scan(&item.ID, &item.Description)
 	if errors.Is(err, sql.ErrNoRows) {

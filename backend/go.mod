@@ -1,6 +1,6 @@
 module myapi
 
-go 1.22
+go 1.27
 
 require (
 	github.com/MicahParks/keyfunc/v3 v3.3.10

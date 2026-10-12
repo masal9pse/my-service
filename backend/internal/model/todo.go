@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"time"
+	"uuid"
+)
 
 // Response は汎用のAPIレスポンス構造体
 type Response struct {
@@ -10,8 +13,8 @@ type Response struct {
 
 // Todo は todos テーブルのレコード構造体
 type Todo struct {
-	ID          int64  `json:"id"`
-	Description string `json:"description"`
+	ID          uuid.UUID `json:"id"`
+	Description string    `json:"description"`
 }
 
 // CreateTodoRequest は Todo 作成リクエストの構造体

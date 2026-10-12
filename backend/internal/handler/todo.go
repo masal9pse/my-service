@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+	"uuid"
 
 	"github.com/golang-jwt/jwt/v5"
 
@@ -100,11 +100,11 @@ func (h *TodoHandler) HandleTodos(w http.ResponseWriter, r *http.Request) {
 
 	// 個別Todoの取得
 	if idStr != "" {
-		id, err := strconv.ParseInt(idStr, 10, 64)
+		id, err := uuid.Parse(idStr)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]string{
-				"error": "Invalid id parameter",
+				"error": "Invalid UUID parameter",
 			})
 			return
 		}
