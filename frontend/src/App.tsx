@@ -153,21 +153,6 @@ export default function App() {
           <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)] group-hover:border-cyan-400 transition">
             <Activity className="w-4 h-4 animate-pulse" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-bold tracking-wider text-base text-zinc-100 group-hover:text-cyan-300 transition">
-                STRANDLOG
-              </h1>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-800 text-cyan-400 font-mono border border-zinc-700/50">
-                GOALS & TODOS
-              </span>
-            </div>
-            <p className="text-[11px] text-zinc-400">
-              {route.page === 'list' 
-                ? '目標・Todo一覧 / マークダウン詳細' 
-                : `Todo #${route.id.length > 8 ? route.id.slice(0, 8) : route.id} 詳細画面`}
-            </p>
-          </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 text-xs text-zinc-400">
@@ -275,7 +260,7 @@ export default function App() {
 
       {/* フッター */}
       <footer className="border-t border-zinc-900 py-6 text-center text-xs text-zinc-600 font-mono">
-        <p>STRANDLOG • 目標 & Todo 一覧・マークダウン詳細ビューアー</p>
+        <p>目標 & Todo 一覧・マークダウン詳細ビューアー</p>
       </footer>
     </div>
   )
