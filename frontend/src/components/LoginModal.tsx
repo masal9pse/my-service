@@ -10,7 +10,7 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ isOpen, onClose, onSuccess, onOpenRegister }: LoginModalProps) {
-  const [email, setEmail] = useState('returnymgstokh@gmail.com')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
