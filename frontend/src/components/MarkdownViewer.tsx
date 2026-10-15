@@ -6,6 +6,23 @@ interface MarkdownViewerProps {
   title?: string
 }
 
+// 安全なURL（http, https, mailto, 内部相対パス）かどうかを判定（XSS対策）
+function isSafeUrl(rawUrl: string): boolean {
+  const trimmed = rawUrl.trim()
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+    return true
+  }
+  if (trimmed.startsWith('#')) {
+    return true
+  }
+  try {
+    const parsed = new URL(trimmed)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 'mailto:'
+  } catch {
+    return false
+  }
+}
+
 // インラインマークダウンのパース（太字, 斜体, コード, リンク, 打消し）
 function renderInline(text: string): ReactNode[] {
   const nodes: ReactNode[] = []
@@ -57,17 +74,29 @@ function renderInline(text: string): ReactNode[] {
       const closingBracket = token.indexOf('](')
       const linkText = token.slice(1, closingBracket)
       const linkUrl = token.slice(closingBracket + 2, -1)
-      nodes.push(
-        <a
-          key={`a-${match.index}`}
-          href={linkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition"
-        >
-          {linkText}
-        </a>
-      )
+      if (isSafeUrl(linkUrl)) {
+        nodes.push(
+          <a
+            key={`a-${match.index}`}
+            href={linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition"
+          >
+            {linkText}
+          </a>
+        )
+      } else {
+        nodes.push(
+          <span
+            key={`unsafe-link-${match.index}`}
+            className="text-zinc-400 underline decoration-dotted underline-offset-2 cursor-not-allowed"
+            title="安全でないリンクのため無効化されました"
+          >
+            {linkText}
+          </span>
+        )
+      }
     }
 
     lastIndex = match.index + token.length
