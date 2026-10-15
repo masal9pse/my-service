@@ -4,7 +4,7 @@ import { Goal, NotTodo, Todo } from './types'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 export async function fetchTodos(): Promise<Todo[]> {
-  const url = `${API_BASE}/todos`
+  const url = `${API_BASE}/api/todos`
   const res = await fetch(url, {
     headers: {
       'Accept': 'application/json',
@@ -25,7 +25,7 @@ export async function fetchTodoById(id: string): Promise<Todo> {
     throw new Error(`Invalid UUID format: "${id}"`)
   }
 
-  const url = `${API_BASE}/todos/${id}`
+  const url = `${API_BASE}/api/todos/${id}`
   const res = await fetch(url, {
     headers: {
       'Accept': 'application/json',
@@ -59,7 +59,7 @@ export async function fetchNotTodos(): Promise<NotTodo[]> {
 }
 
 export async function createTodo(description: string, token?: string, goalId?: string): Promise<Todo> {
-  const url = `${API_BASE}/todos`
+  const url = `${API_BASE}/api/todos`
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -98,7 +98,7 @@ export async function createTodo(description: string, token?: string, goalId?: s
 }
 
 export async function fetchGoals(token?: string): Promise<Goal[]> {
-  const url = `${API_BASE}/goals`
+  const url = `${API_BASE}/api/goals`
   const headers: Record<string, string> = {
     'Accept': 'application/json',
   }
@@ -119,7 +119,7 @@ export async function fetchGoalById(id: string, token?: string): Promise<Goal> {
     throw new Error(`Invalid UUID format: "${id}"`)
   }
 
-  const url = `${API_BASE}/goals/${id}`
+  const url = `${API_BASE}/api/goals/${id}`
   const headers: Record<string, string> = {
     'Accept': 'application/json',
   }
@@ -139,7 +139,7 @@ export async function createGoal(
   data: { title: string; description?: string; deadline?: string },
   token: string
 ): Promise<Goal> {
-  const url = `${API_BASE}/goals`
+  const url = `${API_BASE}/api/goals`
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
