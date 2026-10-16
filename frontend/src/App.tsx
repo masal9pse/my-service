@@ -11,6 +11,7 @@ import { validate as isValidUUID } from 'uuid'
 import { 
   Activity, 
   BookOpen,
+  Lock,
   LogIn,
   LogOut,
   User,
@@ -70,10 +71,17 @@ export default function App() {
 
   // 一覧データの読み込み (Todos & Goals)
   const loadData = () => {
+    if (!session) {
+      setItems([])
+      setGoals([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError(null)
 
-    const token = session?.accessToken
+    const token = session.accessToken
     Promise.all([
       fetchTodos(),
       fetchGoals(token).catch(() => [] as Goal[]),
@@ -147,8 +155,8 @@ export default function App() {
       {/* ヘッダー */}
       <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-[#090d14]/85 backdrop-blur-md px-6 py-4 flex items-center justify-between">
         <div 
-          onClick={navigateToList}
-          className="flex items-center gap-3 cursor-pointer group select-none"
+          onClick={session ? navigateToList : undefined}
+          className={`flex items-center gap-3 select-none ${session ? 'cursor-pointer group' : ''}`}
         >
           <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)] group-hover:border-cyan-400 transition">
             <Activity className="w-4 h-4 animate-pulse" />
@@ -156,17 +164,19 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 text-xs text-zinc-400">
-          <button
-            onClick={navigateToList}
-            className={`px-3 py-1.5 rounded-lg border transition flex items-center gap-1.5 ${
-              route.page === 'list'
-                ? 'bg-zinc-800 border-cyan-500/50 text-cyan-300'
-                : 'bg-zinc-900 border-zinc-800 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>一覧</span>
-          </button>
+          {session && (
+            <button
+              onClick={navigateToList}
+              className={`px-3 py-1.5 rounded-lg border transition flex items-center gap-1.5 ${
+                route.page === 'list'
+                  ? 'bg-zinc-800 border-cyan-500/50 text-cyan-300'
+                  : 'bg-zinc-900 border-zinc-800 hover:text-white hover:bg-zinc-800'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>一覧</span>
+            </button>
+          )}
 
           {/* ログイン・ユーザー状態 */}
           {session ? (
@@ -208,31 +218,54 @@ export default function App() {
       {/* メインコンテンツ */}
       <main className="flex-1 max-w-4xl w-full mx-auto z-10 flex flex-col">
         {route.page === 'list' ? (
-          <TodoListView
-            items={items}
-            goals={goals}
-            selectedGoalId={selectedGoalId}
-            onSelectGoal={setSelectedGoalId}
-            onOpenCreateGoal={() => {
-              if (!session) {
-                setIsLoginOpen(true)
-              } else {
-                setIsCreateGoalOpen(true)
-              }
-            }}
-            loading={loading || isPending}
-            error={error}
-            onRefresh={loadData}
-            onSelectTodo={navigateToDetail}
-            onCreateTodo={handleCreateTodo}
-            isLoggedIn={!!session}
-            onOpenLogin={() => setIsLoginOpen(true)}
-            onOpenRegister={handleOpenRegister}
-          />
+          session ? (
+            <TodoListView
+              items={items}
+              goals={goals}
+              selectedGoalId={selectedGoalId}
+              onSelectGoal={setSelectedGoalId}
+              onOpenCreateGoal={() => setIsCreateGoalOpen(true)}
+              loading={loading || isPending}
+              error={error}
+              onRefresh={loadData}
+              onSelectTodo={navigateToDetail}
+              onCreateTodo={handleCreateTodo}
+              isLoggedIn={true}
+              onOpenLogin={() => setIsLoginOpen(true)}
+              onOpenRegister={handleOpenRegister}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center my-auto">
+              <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-cyan-400 mb-6 shadow-xl shadow-cyan-950/20">
+                <Lock className="w-8 h-8 text-cyan-400" />
+              </div>
+              <h2 className="text-xl font-bold text-zinc-100 mb-2">
+                一覧画面の表示にはサインインが必要です
+              </h2>
+              <p className="text-sm text-zinc-400 max-w-md mb-8 leading-relaxed">
+                目標およびTodo一覧の閲覧・管理は、サインイン後にご利用いただけます。各記事（詳細ページ）はサインインなしでそのまま閲覧可能です。
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsLoginOpen(true)}
+                  className="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-sm transition flex items-center gap-2 shadow-lg shadow-cyan-950/50"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>サインイン</span>
+                </button>
+                <button
+                  onClick={handleOpenRegister}
+                  className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-medium text-sm transition flex items-center gap-2"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>新規登録</span>
+                </button>
+              </div>
+            </div>
+          )
         ) : (
           <TodoDetailView
             todoId={route.id}
-            onBack={navigateToList}
           />
         )}
       </main>

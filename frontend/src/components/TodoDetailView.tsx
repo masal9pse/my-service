@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react'
 import { fetchTodoById } from '../api'
 import { Todo } from '../types'
 import { MarkdownViewer } from './MarkdownViewer'
-import { ArrowLeft, RefreshCw, AlertCircle, FileCode, Hash, Share2, Check } from 'lucide-react'
+import { RefreshCw, AlertCircle, FileCode, Hash, Share2, Check } from 'lucide-react'
 
 interface TodoDetailViewProps {
   todoId: string
-  onBack: () => void
+  onBack?: () => void
 }
 
-export function TodoDetailView({ todoId, onBack }: TodoDetailViewProps) {
+export function TodoDetailView({ todoId }: TodoDetailViewProps) {
   const [todo, setTodo] = useState<Todo | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,15 +43,7 @@ export function TodoDetailView({ todoId, onBack }: TodoDetailViewProps) {
   return (
     <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto py-6 px-4">
       {/* ナビゲーションバー */}
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition"
-        >
-          <ArrowLeft className="w-4 h-4 text-cyan-400" />
-          <span>一覧に戻る</span>
-        </button>
-
+      <div className="flex items-center justify-end border-b border-zinc-800 pb-4">
         <div className="flex items-center gap-2">
           <button
             onClick={handleShare}
