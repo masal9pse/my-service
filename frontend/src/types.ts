@@ -10,6 +10,7 @@ export interface NotTodo {
 export interface Goal {
   id: UUID
   user_id: UUID
+  nickname: string
   title: string
   description: string
   deadline?: string
@@ -23,4 +24,6 @@ export interface Todo {
   goal_id?: UUID | null
   user_id?: UUID | null
   description: string
+  goal_nickname?: string
+  goal_title?: string
 }

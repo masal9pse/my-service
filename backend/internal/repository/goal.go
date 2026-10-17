@@ -119,7 +119,19 @@ func (r *sqlGoalRepository) CreateGoal(ctx context.Context, userID uuid.UUID, ti
 }
 
 func (r *sqlGoalRepository) GetTodosByGoalID(ctx context.Context, goalID uuid.UUID) ([]model.Todo, error) {
-	query := "SELECT id, goal_id, user_id, COALESCE(description, '') FROM todos WHERE goal_id = $1 ORDER BY created_at ASC, id ASC"
+	query := `
+		SELECT 
+			t.id, 
+			t.goal_id, 
+			t.user_id, 
+			COALESCE(t.description, ''),
+			COALESCE(g.nickname, ''),
+			COALESCE(g.title, '')
+		FROM todos t
+		LEFT JOIN goals g ON t.goal_id = g.id
+		WHERE t.goal_id = $1 
+		ORDER BY t.created_at ASC, t.id ASC
+	`
 	rows, err := r.db.QueryContext(ctx, query, goalID)
 	if err != nil {
 		return nil, err
@@ -129,7 +141,7 @@ func (r *sqlGoalRepository) GetTodosByGoalID(ctx context.Context, goalID uuid.UU
 	items := make([]model.Todo, 0)
 	for rows.Next() {
 		var item model.Todo
-		if err := rows.Scan(&item.ID, &item.GoalID, &item.UserID, &item.Description); err != nil {
+		if err := rows.Scan(&item.ID, &item.GoalID, &item.UserID, &item.Description, &item.GoalNickname, &item.GoalTitle); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
