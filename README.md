@@ -99,6 +99,7 @@ flowchart TB
 - [アーキテクチャ意思決定記録 (docs/adr/0001-serve-frontend-from-go-backend.md)](file:///Users/yamamotohiroto/dev_workspace/my-portforio/docs/adr/0001-serve-frontend-from-go-backend.md): フロントエンド同居配信の採用理由
 - [プロダクト仕様書 (SPEC.md)](file:///Users/yamamotohiroto/dev_workspace/my-portforio/SPEC.md): StrandLog のプロダクト機能仕様・要件
 - [開発運用ポリシー (DEVELOPMENT_POLICY.md)](file:///Users/yamamotohiroto/dev_workspace/my-portforio/DEVELOPMENT_POLICY.md): 開発ルール・ブランチ運用
+- [AI ハーネス戦略仕様書 (docs/harness-strategy.md)](file:///Users/yamamotohiroto/dev_workspace/my-portforio/docs/harness-strategy.md): AI駆動開発を支える自動化パイプライン & ガードレール戦略
 
 ---
 

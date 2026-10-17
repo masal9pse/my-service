@@ -1,9 +1,8 @@
 import { useState, type ReactNode } from 'react'
-import { Copy, Check, FileText } from 'lucide-react'
+import { Copy, Check } from 'lucide-react'
 
 interface MarkdownViewerProps {
   content: string
-  title?: string
 }
 
 // 安全なURL（http, https, mailto, 内部相対パス）かどうかを判定（XSS対策）
@@ -109,7 +108,7 @@ function renderInline(text: string): ReactNode[] {
   return nodes
 }
 
-export function MarkdownViewer({ content, title = 'README.md' }: MarkdownViewerProps) {
+export function MarkdownViewer({ content }: MarkdownViewerProps) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = () => {
@@ -406,36 +405,26 @@ export function MarkdownViewer({ content, title = 'README.md' }: MarkdownViewerP
 
   return (
     <div className="w-full rounded-xl border border-zinc-800 bg-[#0d1117] overflow-hidden shadow-2xl">
-      {/* GitHub風ファイルヘッダー */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#161b22] border-b border-zinc-800 text-xs">
-        <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-zinc-400" />
-          <span className="font-mono font-medium text-zinc-200">{title}</span>
-          <span className="text-[11px] text-zinc-500 font-mono ml-2">
-            {lines.length} lines • {content.length} characters
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* コピーボタン */}
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white transition text-xs font-mono"
-            title="Markdownソースをコピー"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Copied</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Copy</span>
-              </>
-            )}
-          </button>
-        </div>
+      {/* ヘッダーツールバー */}
+      <div className="flex items-center justify-end px-4 py-2 bg-[#161b22] border-b border-zinc-800 text-xs">
+        {/* コピーボタン */}
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white transition text-xs font-mono"
+          title="Markdownソースをコピー"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-emerald-400">Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* コンテンツ本体 */}

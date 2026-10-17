@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchTodoById } from '../api'
 import { Todo } from '../types'
 import { MarkdownViewer } from './MarkdownViewer'
-import { RefreshCw, AlertCircle, FileCode, Hash, Share2, Check } from 'lucide-react'
+import { RefreshCw, AlertCircle, Share2, Check } from 'lucide-react'
 
 interface TodoDetailViewProps {
   todoId: string
@@ -103,33 +103,9 @@ export function TodoDetailView({ todoId }: TodoDetailViewProps) {
       {/* 詳細データ表示 */}
       {!loading && !error && todo && (
         <div className="space-y-6">
-          {/* メタ情報ヘッダー */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-900/60 border border-zinc-800 p-4 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-cyan-950/80 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold font-mono">
-                <FileCode className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span 
-                    className="text-xs font-mono text-cyan-400 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40 flex items-center gap-0.5 max-w-[220px] truncate"
-                    title={todo.id}
-                  >
-                    <Hash className="w-3 h-3 shrink-0" />
-                    <span className="truncate">{todo.id}</span>
-                  </span>
-                  <h1 className="text-base font-bold text-zinc-100">
-                    Todo #{todo.id.length > 8 ? todo.id.slice(0, 8) : todo.id}
-                  </h1>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* マークダウンビューアー */}
           <MarkdownViewer
             content={todo.description || '*(本文はありません)*'}
-            title={`todo-${todo.id.length > 8 ? todo.id.slice(0, 8) : todo.id}.md`}
           />
         </div>
       )}
